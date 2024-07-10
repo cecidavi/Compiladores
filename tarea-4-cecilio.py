@@ -1,16 +1,12 @@
 import re
 
-# Define regular expressions for identifiers and integers
 IDENTIFIER_REGEX = re.compile(r'^[A-Za-z][A-Za-z0-9]*$')
 INTEGER_REGEX = re.compile(r'^[0-9]+$')
 
-# Special symbols
 SPECIAL_SYMBOLS = {';', ':', '=', '+', '-', '*', '/', '(', ')'}
 
-# Reserved words (example)
 RESERVED_WORDS = {'PROGRAMA', 'VARIABLES', 'INICIO', 'FIN', 'NUMERO', 'CADENA'}
 
-# Tables
 identifiers_table = {}
 numbers_table = {}
 special_symbols_table = {symbol: idx for idx, symbol in enumerate(SPECIAL_SYMBOLS)}
@@ -62,7 +58,6 @@ def generate_tokens(input_string):
                 token_type, position = classify_token(char)
                 tokens.append((token_type, char, position, current_line))
             elif char == ',':
-                # Handle comma as a separator, but don't add it as a token
                 continue
         else:
             token += char
@@ -83,31 +78,31 @@ class Parser:
         self.program()
 
     def program(self):
-        self.match('PR', 0)  # PROGRAMA
-        program_name = self.match('ID')      # Identifier
-        self.match('SE', 0)   # ;
+        self.match('PR', 0)  
+        program_name = self.match('ID')      
+        self.match('SE', 0)   
         self.symbol_table[program_name] = 'PROGRAMA'
         self.variables()
-        self.match('PR', 2)   # INICIO
+        self.match('PR', 2)   
         self.statements()
-        self.match('PR', 3)   # FIN
-        self.match('SE', 0)   # ;
+        self.match('PR', 3)   
+        self.match('SE', 0)   
 
     def variables(self):
-        self.match('PR', 1)  # VARIABLES
+        self.match('PR', 1)  
         while self.current_token() == ('ID',):
             self.declaration()
 
     def declaration(self):
         var_name = self.match('ID')
-        self.symbol_table[var_name] = 'NUMERO'  # Assuming all variables are of type 'NUMERO'
-        while self.current_token() == ('SE', 0):  # ;
+        self.symbol_table[var_name] = 'NUMERO'  
+        while self.current_token() == ('SE', 0):  
             self.match('SE', 0)
             var_name = self.match('ID')
-            self.symbol_table[var_name] = 'NUMERO'  # Assuming all variables are of type 'NUMERO'
-        self.match('SE', 1)  # ;
-        self.match('PR', 4)     # Type
-        self.match('SE', 0)  # ;
+            self.symbol_table[var_name] = 'NUMERO'  
+        self.match('SE', 1)  
+        self.match('PR', 4)     
+        self.match('SE', 0)  
 
     def statements(self):
         while self.current_token() == ('ID',):
@@ -117,13 +112,13 @@ class Parser:
         var_name = self.match('ID')
         if var_name not in self.symbol_table:
             self.error(f"Variable no declarada: {var_name}")
-        self.match('SE', 2)  # =
+        self.match('SE', 2)  
         self.expression()
-        self.match('SE', 0)  # ;
+        self.match('SE', 0)  
 
     def expression(self):
         self.term()
-        while self.current_token() == ('SE', 3):  # +
+        while self.current_token() == ('SE', 3):  
             self.match('SE', 3)
             self.term()
 
