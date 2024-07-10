@@ -1,167 +1,169 @@
 import re
 
-class Lexer:
-    def __init__(self, input_code):
-        self.input_code = input_code
-        self.tokens = []
-        self.token_specs = [
-            ('Programa', r'PROGRAMA'),        # Palabra clave PROGRAMA
-            ('VARIABLES', r'VARIABLES'),      # Palabra clave VARIABLES
-            ('INICIO', r'INICIO'),            # Palabra clave INICIO
-            ('FIN', r'FIN'),                  # Palabra clave FIN
-            ('NUMERO', r'NUMERO'),            # Palabra clave NUMERO
-            ('ID', r'[A-Za-z]+'),             # Identificadores
-            ('NUMBER', r'\d+(\.\d*)?'),       # Números
-            ('ASSIGN', r'='),                 # Operador de asignación
-            ('PLUS', r'\+'),                  # Operador de suma
-            ('MINUS', r'-'),                  # Operador de resta
-            ('MULT', r'\*'),                  # Operador de multiplicación
-            ('DIV', r'/'),                    # Operador de división
-            ('LPAREN', r'\('),                # Paréntesis izquierdo
-            ('RPAREN', r'\)'),                # Paréntesis derecho
-            ('SEMICOLON', r';'),              # Punto y coma
-            ('COLON', r':'),                  # Dos puntos
-            ('COMMA', r','),                  # Coma
-            ('SKIP', r'[ \t\n]+'),            # Espacios, tabulaciones y nuevas líneas
-            ('COMMENT', r'\{[^}]*\}'),        # Comentarios entre {}
-            ('MISMATCH', r'.'),               # Cualquier otro carácter
-        ]
+# Define regular expressions for identifiers and integers
+IDENTIFIER_REGEX = re.compile(r'^[A-Za-z][A-Za-z0-9]*$')
+INTEGER_REGEX = re.compile(r'^[0-9]+$')
 
-    def tokenize(self):
-        token_regex = '|'.join(f'(?P<{pair[0]}>{pair[1]})' for pair in self.token_specs)
-        for mo in re.finditer(token_regex, self.input_code):
-            kind = mo.lastgroup
-            value = mo.group()
-            if kind == 'NUMBER':
-                value = float(value) if '.' in value else int(value)
-            elif kind == 'SKIP' or kind == 'COMMENT':
+# Special symbols
+SPECIAL_SYMBOLS = {';', ':', '=', '+', '-', '*', '/', '(', ')' }
+
+# Reserved words (example)
+RESERVED_WORDS = {'PROGRAMA', 'VARIABLES', 'INICIO', 'FIN', 'NUMERO', 'CADENA'}
+
+# Tables
+identifiers_table = {}
+numbers_table = {}
+special_symbols_table = {symbol: idx for idx, symbol in enumerate(SPECIAL_SYMBOLS)}
+reserved_words_table = {word: idx for idx, word in enumerate(RESERVED_WORDS)}
+
+def classify_token(token):
+    token_upper = token.upper()
+    if IDENTIFIER_REGEX.match(token):
+        if token_upper in RESERVED_WORDS:
+            return 'PR', reserved_words_table[token_upper]
+        if token not in identifiers_table:
+            identifiers_table[token] = len(identifiers_table)
+        return 'ID', identifiers_table[token]
+    elif INTEGER_REGEX.match(token):
+        if token not in numbers_table:
+            numbers_table[token] = len(numbers_table)
+        return 'CN', numbers_table[token]
+    elif token in SPECIAL_SYMBOLS:
+        return 'SE', special_symbols_table[token]
+    else:
+        return 'error', None
+
+def generate_tokens(input_string):
+    tokens = []
+    in_comment = False
+    token = ""
+    
+    for char in input_string:
+        if in_comment:
+            if char == '}':
+                in_comment = False
+            continue
+        if char == '{':
+            in_comment = True
+            continue
+        
+        if char.isspace() or char in SPECIAL_SYMBOLS or char == ',':
+            if token:
+                token_type, position = classify_token(token)
+                tokens.append((token_type, token, position))
+                token = ""
+            if char in SPECIAL_SYMBOLS:
+                token_type, position = classify_token(char)
+                tokens.append((token_type, char, position))
+            elif char == ',':
+                # Manejo de la coma como un separador, pero no la añade como token
                 continue
-            elif kind == 'MISMATCH':
-                raise RuntimeError(f'{value} inesperado en la entrada')
-            self.tokens.append((kind, value))
-        return self.tokens
-
-class SymbolTable:
-    def __init__(self):
-        self.symbols = {}
-
-    def define(self, name, type):
-        self.symbols[name] = {'type': type, 'value': None}
-
-    def lookup(self, name):
-        if name in self.symbols:
-            return self.symbols[name]
         else:
-            raise RuntimeError(f'{name} no definido')
+            token += char
+    
+    if token:
+        token_type, position = classify_token(token)
+        tokens.append((token_type, token, position))
+    
+    return tokens
 
 class Parser:
     def __init__(self, tokens):
         self.tokens = tokens
         self.pos = 0
-        self.symbol_table = SymbolTable()
 
     def parse(self):
-        try:
-            self.program()
-            return "Programa Parseado Correctamente"
-        except RuntimeError as e:
-            return str(e)
-
-    def consume(self, expected_type):
-        if self.pos < len(self.tokens) and self.tokens[self.pos][0] == expected_type:
-            self.pos += 1
-        else:
-            raise RuntimeError(f'Se esperaba {expected_type} pero se encontró {self.tokens[self.pos][0]}')
+        self.program()
 
     def program(self):
-        self.consume('PROGRAMA')
-        program_name = self.tokens[self.pos][1]
-        self.consume('ID')
-        self.consume('SEMICOLON')
-        self.bloque()
-        self.consume('SEMICOLON')
-
-    def bloque(self):
-        self.consume('VARIABLES')
-        self.variable_declaration()
-        self.consume('INICIO')
+        self.match('PR', 0)  # PROGRAMA
+        self.match('ID')      # Identifier
+        self.match('SE', 0)   # ;
+        self.variables()
+        self.match('PR', 2)   # INICIO
         self.statements()
-        self.consume('FIN')
+        self.match('PR', 3)   # FIN
+        self.match('SE', 0)   # ;
 
-    def variable_declaration(self):
-        while self.tokens[self.pos][0] == 'ID':
-            var_name = self.tokens[self.pos][1]
-            self.symbol_table.define(var_name, 'NUMERO')  # Definir el identificador
-            self.consume('ID')
-            while self.tokens[self.pos][0] == 'COMMA':
-                self.consume('COMMA')
-                var_name = self.tokens[self.pos][1]
-                self.symbol_table.define(var_name, 'NUMERO')  # Definir el identificador
-                self.consume('ID')
-            self.consume('COLON')
-            self.consume('NUMERO')
-            self.consume('SEMICOLON')
+    def variables(self):
+        self.match('PR', 1)  # VARIABLES
+        while self.current_token() == ('ID',):
+            self.declaration()
+
+    def declaration(self):
+        self.match('ID')
+        while self.current_token() == ('SE', 0):  # ;
+            self.match('SE', 0)
+            self.match('ID')
+        self.match('SE', 1)  # :
+        self.match('PR')     # Type
+        self.match('SE', 0)  # ;
 
     def statements(self):
-        while self.tokens[self.pos][0] != 'FIN':
+        while self.current_token() == ('ID',):
             self.statement()
 
     def statement(self):
-        self.consume('ID')
-        self.consume('ASSIGN')
+        self.match('ID')
+        self.match('SE', 2)  # =
         self.expression()
-        self.consume('SEMICOLON')
+        self.match('SE', 0)  # ;
 
     def expression(self):
         self.term()
-        while self.tokens[self.pos][0] in ('PLUS', 'MINUS'):
-            self.consume(self.tokens[self.pos][0])
+        while self.current_token() == ('SE', 3):  # +
+            self.match('SE', 3)
             self.term()
 
     def term(self):
-        self.factor()
-        while self.tokens[self.pos][0] in ('MULT', 'DIV'):
-            self.consume(self.tokens[self.pos][0])
-            self.factor()
+        if self.current_token() == ('ID',):
+            self.match('ID')
+        elif self.current_token() == ('CN',):
+            self.match('CN')
 
-    def factor(self):
-        if self.tokens[self.pos][0] == 'NUMBER':
-            self.consume('NUMBER')
-        elif self.tokens[self.pos][0] == 'ID':
-            self.consume('ID')
-        elif self.tokens[self.pos][0] == 'LPAREN':
-            self.consume('LPAREN')
-            self.expression()
-            self.consume('RPAREN')
+    def match(self, token_type, token_value=None):
+        if self.pos < len(self.tokens):
+            token = self.tokens[self.pos]
+            if token[0] == token_type and (token_value is None or token[2] == token_value):
+                self.pos += 1
+            else:
+                self.error(token)
         else:
-            raise RuntimeError('Token inesperado')
+            self.error(None)
 
-# Ejemplo de uso
-# cambiar el input_string por el código que se desea analizar
-# no forzar la lectura de un archivo
+    def current_token(self):
+        if self.pos < len(self.tokens):
+            return self.tokens[self.pos][0],
+        return None
+
+    def error(self, token):
+        if token:
+            print(f"Error: token inesperado {token} en posición {self.pos}")
+        else:
+            print(f"Error: fin de entrada inesperado")
+        exit(1)
+
+
 input_string = """PROGRAMA ObjetivoFinal;
 VARIABLES
-  A,B,C,D: NUMERO;
+  A,B,C: NUMERO;
   X:     NUMERO;
 INICIO
   A=10;
   B=20;
-  c=30;
-    D=40;
+  C=30;
   X=A+B; {Operaciones Aritméticas}
 FIN;"""
 
-lexer = Lexer(input_string)
-tokens = lexer.tokenize()
-print("Tokens:")
-for token in tokens:
-    print(token)
+tokens = generate_tokens(input_string)
+
+for token_type, token, position in tokens:
+    if token_type == 'error':
+        print(f'***CARÁCTER INVÁLIDO: {token}***')
+    else:
+        print(f'{token}\t{token_type}\t{position}')
 
 parser = Parser(tokens)
-result = parser.parse()
-print("\nResultado del análisis:")
-print(result)
+parser.parse()
 
-print("\nTabla de símbolos:")
-for name, info in parser.symbol_table.symbols.items():
-    print(name, info)
+print("\nAnálisis sintáctico completado con éxito")

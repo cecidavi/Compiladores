@@ -1,0 +1,10 @@
+PROGRAMA ObjetivoFinal;
+VARIABLES
+  A,B,C: NUMERO;
+  X:     NUMERO;
+INICIO
+  A=10;
+  B=20;
+  C=30;
+  X=A+B; {Operaciones Aritméticas}
+FIN;
