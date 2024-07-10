@@ -30,8 +30,10 @@ def classify_token(token):
         return 'CN', numbers_table[token]
     elif token in SPECIAL_SYMBOLS:
         return 'SE', special_symbols_table[token]
+    elif token.startswith('{') and token.endswith('}'):
+        return 'COMENTARIO', token
     else:
-        return 'error', None
+        return 'error', token
 
 def generate_tokens(input_string):
     tokens = []
@@ -60,7 +62,7 @@ def generate_tokens(input_string):
                 token_type, position = classify_token(char)
                 tokens.append((token_type, char, position, current_line))
             elif char == ',':
-                # Manejo de la coma como un separador, pero no la añade como token
+                # Handle comma as a separator, but don't add it as a token
                 continue
         else:
             token += char
@@ -158,16 +160,8 @@ class Parser:
         exit(1)
 
 def main():
-    input_string = """PROGRAMA ObjetivoFinal;
-VARIABLES
-  A,B,C: NUMERO;
-  X:     NUMERO;
-INICIO
-  A=10;
-  B=20;
-  C=30;
-  X=A+B; {Operaciones Aritméticas}
-FIN;"""
+    with open('codigo.txt', 'r') as file:
+        input_string = file.read()
 
     tokens = generate_tokens(input_string)
 
@@ -183,12 +177,6 @@ FIN;"""
     parser.parse()
 
     print("\nAnálisis sintáctico completado con éxito")
-
-    # Implementación del análisis semántico
-    semantic_analyzer = SemanticAnalyzer(parser)
-    semantic_analyzer.analyze()
-
-    print("\nAnálisis semántico completado con éxito")
 
 if __name__ == "__main__":
     main()

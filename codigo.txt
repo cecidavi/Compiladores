@@ -1,5 +1,5 @@
 PROGRAMA ObjetivoFinal;
-VARIABLES
+VARIABLES;
   A,B,C: NUMERO;
   X:     NUMERO;
 INICIO
