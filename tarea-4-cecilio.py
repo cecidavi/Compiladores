@@ -5,7 +5,7 @@ IDENTIFIER_REGEX = re.compile(r'^[A-Za-z][A-Za-z0-9]*$')
 INTEGER_REGEX = re.compile(r'^[0-9]+$')
 
 # Special symbols
-SPECIAL_SYMBOLS = {';', ':', '=', '+', '-', '*', '/', '(', ')' }
+SPECIAL_SYMBOLS = {';', ':', '=', '+', '-', '*', '/', '(', ')'}
 
 # Reserved words (example)
 RESERVED_WORDS = {'PROGRAMA', 'VARIABLES', 'INICIO', 'FIN', 'NUMERO', 'CADENA'}
@@ -37,6 +37,7 @@ def generate_tokens(input_string):
     tokens = []
     in_comment = False
     token = ""
+    current_line = 1
     
     for char in input_string:
         if in_comment:
@@ -47,14 +48,17 @@ def generate_tokens(input_string):
             in_comment = True
             continue
         
+        if char == '\n':
+            current_line += 1
+        
         if char.isspace() or char in SPECIAL_SYMBOLS or char == ',':
             if token:
                 token_type, position = classify_token(token)
-                tokens.append((token_type, token, position))
+                tokens.append((token_type, token, position, current_line))
                 token = ""
             if char in SPECIAL_SYMBOLS:
                 token_type, position = classify_token(char)
-                tokens.append((token_type, char, position))
+                tokens.append((token_type, char, position, current_line))
             elif char == ',':
                 # Manejo de la coma como un separador, pero no la añade como token
                 continue
@@ -63,7 +67,7 @@ def generate_tokens(input_string):
     
     if token:
         token_type, position = classify_token(token)
-        tokens.append((token_type, token, position))
+        tokens.append((token_type, token, position, current_line))
     
     return tokens
 
@@ -71,14 +75,16 @@ class Parser:
     def __init__(self, tokens):
         self.tokens = tokens
         self.pos = 0
+        self.symbol_table = {}
 
     def parse(self):
         self.program()
 
     def program(self):
         self.match('PR', 0)  # PROGRAMA
-        self.match('ID')      # Identifier
+        program_name = self.match('ID')      # Identifier
         self.match('SE', 0)   # ;
+        self.symbol_table[program_name] = 'PROGRAMA'
         self.variables()
         self.match('PR', 2)   # INICIO
         self.statements()
@@ -91,12 +97,14 @@ class Parser:
             self.declaration()
 
     def declaration(self):
-        self.match('ID')
+        var_name = self.match('ID')
+        self.symbol_table[var_name] = 'NUMERO'  # Assuming all variables are of type 'NUMERO'
         while self.current_token() == ('SE', 0):  # ;
             self.match('SE', 0)
-            self.match('ID')
-        self.match('SE', 1)  # :
-        self.match('PR')     # Type
+            var_name = self.match('ID')
+            self.symbol_table[var_name] = 'NUMERO'  # Assuming all variables are of type 'NUMERO'
+        self.match('SE', 1)  # ;
+        self.match('PR', 4)     # Type
         self.match('SE', 0)  # ;
 
     def statements(self):
@@ -104,7 +112,9 @@ class Parser:
             self.statement()
 
     def statement(self):
-        self.match('ID')
+        var_name = self.match('ID')
+        if var_name not in self.symbol_table:
+            self.error(f"Variable no declarada: {var_name}")
         self.match('SE', 2)  # =
         self.expression()
         self.match('SE', 0)  # ;
@@ -117,7 +127,9 @@ class Parser:
 
     def term(self):
         if self.current_token() == ('ID',):
-            self.match('ID')
+            var_name = self.match('ID')
+            if var_name not in self.symbol_table:
+                self.error(f"Variable no declarada: {var_name}")
         elif self.current_token() == ('CN',):
             self.match('CN')
 
@@ -126,6 +138,8 @@ class Parser:
             token = self.tokens[self.pos]
             if token[0] == token_type and (token_value is None or token[2] == token_value):
                 self.pos += 1
+                if token_type == 'ID' and token[1] in self.symbol_table:
+                    return token[1]
             else:
                 self.error(token)
         else:
@@ -143,8 +157,8 @@ class Parser:
             print(f"Error: fin de entrada inesperado")
         exit(1)
 
-
-input_string = """PROGRAMA ObjetivoFinal;
+def main():
+    input_string = """PROGRAMA ObjetivoFinal;
 VARIABLES
   A,B,C: NUMERO;
   X:     NUMERO;
@@ -155,15 +169,26 @@ INICIO
   X=A+B; {Operaciones Aritméticas}
 FIN;"""
 
-tokens = generate_tokens(input_string)
+    tokens = generate_tokens(input_string)
 
-for token_type, token, position in tokens:
-    if token_type == 'error':
-        print(f'***CARÁCTER INVÁLIDO: {token}***')
-    else:
-        print(f'{token}\t{token_type}\t{position}')
+    for token_type, token, position, line in tokens:
+        if token_type == 'error':
+            print(f'***CARÁCTER INVÁLIDO: {token}***')
+        elif token_type == 'COMENTARIO':
+            print(f'Token: {token_type}, Valor: {token}, Línea: {line}')
+        else:
+            print(f'Token: {token_type}, Valor: {token}, Línea: {line}')
 
-parser = Parser(tokens)
-parser.parse()
+    parser = Parser(tokens)
+    parser.parse()
 
-print("\nAnálisis sintáctico completado con éxito")
+    print("\nAnálisis sintáctico completado con éxito")
+
+    # Implementación del análisis semántico
+    semantic_analyzer = SemanticAnalyzer(parser)
+    semantic_analyzer.analyze()
+
+    print("\nAnálisis semántico completado con éxito")
+
+if __name__ == "__main__":
+    main()
