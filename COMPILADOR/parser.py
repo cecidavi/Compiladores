@@ -23,7 +23,7 @@ class Parser():
       raise SyntaxError("Fin inesperado de la entrada")
     #° Si el token actual no es del tipo esperado, lanzar un error
     if self.token_actual[0] != tipo_token or (valor is not None and self.token_actual[1] != valor):
-      raise SyntaxError(f"Token inesperado {self.token_actual}")
+      raise SyntaxError(f"Se esperaba un token de tipo {tipo_token} y valor {valor} pero se encontro {self.token_actual}")
     self.token_siguiente()
 
   #~ Funcion para el analisis sintactico
@@ -63,11 +63,11 @@ class Parser():
   #~ Funcion para los estatutos
   def estatutos(self):
     #° Mientras el token actual no sea palabra reservada FIN
-    while self.token_actual and self.token_actual[0] != 'PR' and self.token_actual[1] != 4:
+    while self.token_actual and (self.token_actual[0] != 'PR' or self.token_actual[1] != 4):
       #° Si el token actual es un comentario, avanzar al siguiente token y continuar
       if self.token_actual[0] == 'CO':
         self.token_siguiente()
-        break
+        continue
       self.estatuto()
 
   #~ Funcion para los estatutos

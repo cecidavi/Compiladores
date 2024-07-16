@@ -26,11 +26,12 @@ def main():
   lexer = Lexer(programa)
   tokens = lexer.lexico()
 
+  #! Descomentar para ver las listas de tokens
   # Imprimir los tokens
-  print(" TOKENS ".center(50, '-'))
-  print(' Tipo - Posicion - Valor '.center(50, '_'))
-  for token in tokens:
-    print(token)
+  #print(" TOKENS ".center(50, '-'))
+  #print(' Tipo - Posicion - Valor '.center(50, '_'))
+  #for token in tokens:
+  #  print(token)
 
   #! Descomentar para ver las listas de tokens
   # lexer.listas_tokens()
@@ -46,23 +47,28 @@ def main():
     print(f"-> Syntax Error: {e}")
     return
   
-  # Imprimir la expresion postfija
+  # Imprimir la expresion postfija de las asignaciones
   print(" EXPRESION POSTFIJA ".center(50, '-'))
   postfix_converter = Postfix()
+  variables = {}
   expresiones_postfijas = []
+
   for i, token in enumerate(tokens):
     if token[0] == 'SE' and token[1] == 4:  # Encontrar el token '='
+      var_name = tokens[i-1][2]
       expr_tokens = []
       j = i + 1
       while j < len(tokens) and not (tokens[j][0] == 'SE' and tokens[j][1] == 1):  # Hasta el ';'
         expr_tokens.append(tokens[j])
         j += 1
       postfijo = postfix_converter.infijo_a_postfijo(expr_tokens)
-      expresiones_postfijas.append(postfijo)
+      expresiones_postfijas.append((var_name, postfijo))
       i = j
-    
-  for exp in expresiones_postfijas:
-    print('Expresion postfija: ', exp)
+
+  for var_name, exp in expresiones_postfijas:
+    resultado = postfix_converter.evaluar_postfijo(exp, variables)
+    variables[var_name] = resultado
+    print(f'Expresion postfija: {exp} = {resultado}')
 
 
 if __name__ == "__main__":
