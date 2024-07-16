@@ -1,0 +1,20 @@
+PROGRAMA ObjetivoFinal;
+
+      {TABULACION     }
+VARIABLES
+  A,B,C,D: NUMERO;
+  X:     NUMERO;
+  T: NUMERO;
+INICIO
+  A=10;
+  B=15;
+  C=20;
+  D=25;
+  {Operaciones Aritmeticas}
+  X=(A+B); 
+  T=(A-B)*(A+B);
+  T=(A+B)*C;
+  T=A*(B+C);
+  T=(A+B)*(C-D);
+  T=A+B*C;
+FIN;
